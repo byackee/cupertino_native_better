@@ -147,14 +147,21 @@ struct LiquidGlassContainerSwiftUI: View {
   let cornerRadius: CGFloat?
   let tint: UIColor?
   let interactive: Bool
-  
+
+  /// Observe transition state to disable glass effect during navigation
+  @ObservedObject private var transitionObserver = CNTransitionObserver.shared
+
   var body: some View {
     GeometryReader { geometry in
       shapeForConfig()
         .fill(Color.clear)
         .contentShape(shapeForConfig())
         .allowsHitTesting(false)  // Always false - let Flutter handle gestures
-        .glassEffect(glassEffectForConfig(), in: shapeForConfig())
+        .applyConditionalGlassEffectForContainer(
+          isTransitioning: transitionObserver.isTransitioning,
+          glass: glassEffectForConfig(),
+          shape: shapeForConfig()
+        )
         .frame(width: geometry.size.width, height: geometry.size.height)
         .animation(.easeInOut(duration: 0.25), value: effect)
         .animation(.easeInOut(duration: 0.25), value: shape)
@@ -194,16 +201,34 @@ struct LiquidGlassContainerSwiftUI: View {
   }
 }
 
+// Helper to apply glass effect conditionally based on transition state for containers
+@available(iOS 26.0, *)
+extension View {
+  @ViewBuilder
+  func applyConditionalGlassEffectForContainer<S: Shape>(isTransitioning: Bool, glass: Glass, shape: S) -> some View {
+    if isTransitioning {
+      // During transitions, use a simple background instead of glass to prevent sampling artifacts
+      self.background(
+        shape
+          .fill(Color(UIColor.systemBackground).opacity(0.8))
+      )
+    } else {
+      // Normal state - apply full glass effect
+      self.glassEffect(glass, in: shape)
+    }
+  }
+}
+
 // Fallback for iOS < 26
 class FallbackLiquidGlassContainerView: NSObject, FlutterPlatformView {
   private let container: UIView
-  
+
   init(frame: CGRect, viewId: Int64, args: Any?, messenger: FlutterBinaryMessenger) {
     self.container = UIView(frame: frame)
     self.container.backgroundColor = .clear
     super.init()
   }
-  
+
   func view() -> UIView {
     return container
   }

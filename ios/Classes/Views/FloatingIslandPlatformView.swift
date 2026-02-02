@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import SwiftUI
+import Combine
 
 class FloatingIslandPlatformView: NSObject, FlutterPlatformView {
     private let channel: FlutterMethodChannel
@@ -168,6 +169,9 @@ struct FloatingIslandSwiftUI: View {
     @ObservedObject var viewModel: FloatingIslandViewModel
     @Namespace private var animation
 
+    /// Observe transition state to disable glass effect during navigation
+    @ObservedObject private var transitionObserver: CNTransitionObserverWrapper = CNTransitionObserverWrapper()
+
     var body: some View {
         GeometryReader { geometry in
             let maxWidth = geometry.size.width
@@ -197,15 +201,28 @@ struct FloatingIslandSwiftUI: View {
     private func islandContent(width: CGFloat, height: CGFloat, cornerRadius: CGFloat) -> some View {
         if #available(iOS 26.0, *) {
             // Native glass effect on iOS 26+
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(.clear)
-                .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
-                .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
-                .onTapGesture {
-                    withAnimation(.spring(response: viewModel.springResponse, dampingFraction: viewModel.springDamping)) {
-                        viewModel.onTapped?()
+            // Conditionally apply glass effect based on transition state
+            if transitionObserver.isTransitioning {
+                // During transitions, use a simple background instead of glass
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(Color(UIColor.systemBackground).opacity(0.8))
+                    .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+                    .onTapGesture {
+                        withAnimation(.spring(response: viewModel.springResponse, dampingFraction: viewModel.springDamping)) {
+                            viewModel.onTapped?()
+                        }
                     }
-                }
+            } else {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(.clear)
+                    .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+                    .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+                    .onTapGesture {
+                        withAnimation(.spring(response: viewModel.springResponse, dampingFraction: viewModel.springDamping)) {
+                            viewModel.onTapped?()
+                        }
+                    }
+            }
         } else {
             // Fallback for older iOS
             RoundedRectangle(cornerRadius: cornerRadius)
@@ -242,5 +259,32 @@ struct AnyShapeStyle: ShapeStyle {
 
     func resolve(in environment: EnvironmentValues) -> some ShapeStyle {
         return self
+    }
+}
+
+// MARK: - Transition Observer Wrapper
+
+/// Wrapper for CNTransitionObserver to handle iOS version availability
+class CNTransitionObserverWrapper: ObservableObject {
+    @Published var isTransitioning: Bool = false
+    private var cancellable: Any?
+
+    init() {
+        if #available(iOS 13.0, *) {
+            // Subscribe to the shared CNTransitionObserver
+            cancellable = CNTransitionObserver.shared.$isTransitioning
+                .receive(on: RunLoop.main)
+                .sink { [weak self] value in
+                    self?.isTransitioning = value
+                }
+        }
+    }
+
+    deinit {
+        if #available(iOS 13.0, *) {
+            if let cancellable = cancellable as? AnyCancellable {
+                cancellable.cancel()
+            }
+        }
     }
 }

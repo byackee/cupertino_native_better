@@ -1,3 +1,18 @@
+## 1.3.4
+
+### New Features
+
+- **Added**: `interaction` property for `CNButtonConfig` and `CNButtonDataConfig` (PR #15 by @anirudhrao-github)
+  - Allows disabling button touch handling without changing visual appearance
+  - When `interaction: false`, button maintains normal look but doesn't respond to touches
+  - Useful for conditional interactivity while preserving UI consistency
+
+### Improvements
+
+- **Improved**: `LiquidGlassContainer` layout simplified for better parent alignment control
+
+---
+
 ## 1.3.3
 
 ### New Features

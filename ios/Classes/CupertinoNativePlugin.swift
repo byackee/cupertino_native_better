@@ -7,6 +7,11 @@ public class CupertinoNativePlugin: NSObject, FlutterPlugin {
     let instance = CupertinoNativePlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
 
+    // Initialize transition observer early to setup edge gesture detection
+    if #available(iOS 13.0, *) {
+      _ = CNTransitionObserver.shared
+    }
+
     // Setup native tab bar manager (runtime check inside)
     CNNativeTabBarManager.shared.setup(messenger: registrar.messenger())
 
@@ -60,6 +65,18 @@ public class CupertinoNativePlugin: NSObject, FlutterPlugin {
     case "getMajorOSVersion":
       let version = ProcessInfo.processInfo.operatingSystemVersion
       result(Int(version.majorVersion))
+    case "beginTransition":
+      // Flutter is starting a navigation transition - disable glass effects temporarily
+      if #available(iOS 13.0, *) {
+        CNTransitionObserver.shared.beginTransition()
+      }
+      result(nil)
+    case "endTransition":
+      // Flutter navigation transition ended - re-enable glass effects
+      if #available(iOS 13.0, *) {
+        CNTransitionObserver.shared.endTransition()
+      }
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }

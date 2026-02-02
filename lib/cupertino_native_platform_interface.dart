@@ -34,4 +34,16 @@ abstract class CupertinoNativePlatform extends PlatformInterface {
   Future<int?> getMajorOSVersion() {
     throw UnimplementedError('getMajorOSVersion() has not been implemented.');
   }
+
+  /// Notifies native components that a navigation transition is starting.
+  /// Call this before pushing/popping routes to prevent glass effect artifacts.
+  Future<void> beginTransition() {
+    throw UnimplementedError('beginTransition() has not been implemented.');
+  }
+
+  /// Notifies native components that a navigation transition has ended.
+  /// Call this after the transition animation completes.
+  Future<void> endTransition() {
+    throw UnimplementedError('endTransition() has not been implemented.');
+  }
 }

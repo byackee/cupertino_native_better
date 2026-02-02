@@ -7,6 +7,7 @@ class CupertinoPopupMenuButtonPlatformView: NSObject, FlutterPlatformView {
   private let button: UIButton
   private var currentButtonStyle: String = "automatic"
   private var isRoundButton: Bool = false
+  private var isTransitioning: Bool = false
   private var labels: [String] = []
   private var symbols: [String] = []
   private var customIconBytes: [Data?] = []
@@ -173,6 +174,16 @@ class CupertinoPopupMenuButtonPlatformView: NSObject, FlutterPlatformView {
       button.showsMenuAsPrimaryAction = true
     } else {
       button.addTarget(self, action: #selector(onButtonPressedLegacy(_:)), for: .touchUpInside)
+    }
+
+    // Observe transition state changes to swap glass style during navigation
+    if #available(iOS 13.0, *) {
+      NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(handleTransitionStateChange(_:)),
+        name: CNTransitionObserver.transitionStateChangedNotification,
+        object: nil
+      )
     }
 
     channel.setMethodCallHandler { [weak self] call, result in
@@ -627,9 +638,11 @@ class CupertinoPopupMenuButtonPlatformView: NSObject, FlutterPlatformView {
       case "borderedProminent": config = .borderedProminent()
       case "filled": config = .filled()
       case "glass":
-        if #available(iOS 26.0, *) { config = .glass() } else { config = .tinted() }
+        // Use tinted fallback during transitions to prevent glass sampling artifacts
+        if #available(iOS 26.0, *), !isTransitioning { config = .glass() } else { config = .tinted() }
       case "prominentGlass":
-        if #available(iOS 26.0, *) { config = .prominentGlass() } else { config = .tinted() }
+        // Use tinted fallback during transitions to prevent glass sampling artifacts
+        if #available(iOS 26.0, *), !isTransitioning { config = .prominentGlass() } else { config = .tinted() }
       default:
         config = .plain()
       }
@@ -684,5 +697,27 @@ class CupertinoPopupMenuButtonPlatformView: NSObject, FlutterPlatformView {
 
   private static func createImageFromData(_ data: Data, format: String?, scale: CGFloat) -> UIImage? {
     return ImageUtils.createImageFromData(data, format: format, scale: scale)
+  }
+
+  deinit {
+    if #available(iOS 13.0, *) {
+      NotificationCenter.default.removeObserver(self)
+    }
+  }
+
+  @objc private func handleTransitionStateChange(_ notification: Notification) {
+    guard let userInfo = notification.userInfo,
+          let transitioning = userInfo["isTransitioning"] as? Bool else { return }
+
+    self.isTransitioning = transitioning
+
+    // Only swap styles if using glass style on iOS 26+
+    if #available(iOS 26.0, *) {
+      if currentButtonStyle == "glass" || currentButtonStyle == "prominentGlass" {
+        DispatchQueue.main.async {
+          self.applyButtonStyle(buttonStyle: self.currentButtonStyle, round: self.isRoundButton)
+        }
+      }
+    }
   }
 }

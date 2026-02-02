@@ -21,7 +21,7 @@
 /// - [CNTabBar] - Native tab bar
 /// - [CNIcon] - SF Symbols icon renderer
 /// - [CNGlassButtonGroup] - Glass button group with Liquid Glass effects
-/// - [CNLiquidGlassContainer] - Container with Liquid Glass background
+/// - [LiquidGlassContainer] - Container with Liquid Glass background
 ///
 /// {@category Main}
 library;
@@ -44,6 +44,7 @@ export 'components/liquid_glass_container.dart';
 export 'utils/version_detector.dart';
 export 'utils/theme_helper.dart';
 export 'style/glass_effect.dart';
+export 'utils/transition_observer.dart';
 
 import 'cupertino_native_platform_interface.dart';
 
